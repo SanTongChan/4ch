@@ -1,0 +1,295 @@
+C51 COMPILER V9.53.0.0   WIRELESS                                                          04/06/2017 13:15:34 PAGE 1   
+
+
+C51 COMPILER V9.53.0.0, COMPILATION OF MODULE WIRELESS
+OBJECT MODULE PLACED IN .\src\wireless.OBJ
+COMPILER INVOKED BY: c:\SiliconLabs\SimplicityStudio\v3\developer\toolchains\keil_8051\9.53\BIN\C51.exe C:\Users\Adminis
+                    -trator\SimplicityStudio\v3_workspace\aidik_4ch\src\wireless.c OMF2 SMALL DEBUG OBJECTEXTEND ROM(LARGE) WARNINGLEVEL(2) F
+                    -LOATFUZZY(3) OPTIMIZE(9,SPEED) DEFINE(NDEBUG=1) INTVECTOR(0X0000) INTPROMOTE INCDIR(C:\Users\Administrator\SimplicityStu
+                    -dio\v3_workspace\aidik_4ch\inc;C:/SiliconLabs/SimplicityStudio/v3/developer/sdks/si8051/v3//Device/shared/si8051Base;C:/
+                    -SiliconLabs/SimplicityStudio/v3/developer/sdks/si8051/v3//Device/EFM8BB1;C:/SiliconLabs/SimplicityStudio/v3/developer/sd
+                    -ks/si8051/v3//Device/EFM8BB1/inc) REGFILE(aidik_4ch.ORC) PRINT(.\src\wireless.lst) COND PAGEWIDTH(120) PAGELENGTH(65) OB
+                    -JECT(.\src\wireless.OBJ)
+
+line level    source
+
+   1          /*
+   2           * wireless.c
+   3           *
+   4           *  Created on: 2017-4-5
+   5           *      Author: Administrator
+   6           */
+   7          #include "wireless.h"
+   8          #include "led.h"
+   9          #include "logic.h"
+  10          #include "EFM8BB1_FlashPrimitives.h"
+  11          sbit WIRELESS_PIN = P1^2;
+  12          static uint8_t xdata decode_data[3] = {0};
+  13          static uint8_t xdata dev_params[13] = {0};
+  14          static bool wireless_flag = false;
+  15          
+  16          #if 1
+  17          void savaParamtoFlash(void)
+  18          {
+  19   1              uint8_t i = 0;
+  20   1              FLASH_PageErase(FLASH_LAST);
+  21   1              for(i = 0; i < 13; i++)
+  22   1              {
+  23   2                      FLASH_ByteWrite(FLASH_LAST+i,dev_params[i]);
+  24   2              }
+  25   1              //FLASH_ByteWrite(FLASH_LAST + 12,work_mode_params);
+  26   1      }
+  27          void loadParamtoFlash(void)
+  28          {
+  29   1              uint8_t i = 0;
+  30   1              for(i = 0; i < 13; i++)
+  31   1              {
+  32   2                      dev_params[i] = FLASH_ByteRead(FLASH_LAST+i);
+  33   2                      if(dev_params[i] == 0xff)
+  34   2                      {
+  35   3                              dev_params[i] = 0;
+  36   3                      }
+  37   2              }
+  38   1      }
+  39          #if 0
+              void saveWorkParams(void)
+              {
+                      work_mode_params &= (device_def.device_work_mode << 4);
+                      work_mode_params |= device_def.device_channel_def[3].device_channel_mode << 3;
+                      work_mode_params |= device_def.device_channel_def[2].device_channel_mode << 2;
+                      work_mode_params |= device_def.device_channel_def[1].device_channel_mode << 1;
+                      work_mode_params |= device_def.device_channel_def[0].device_channel_mode << 0;
+              }
+              void loadWorkParams(void)
+              {
+                      device_def.device_work_mode = work_mode_params & (0x01 << 4);
+C51 COMPILER V9.53.0.0   WIRELESS                                                          04/06/2017 13:15:34 PAGE 2   
+
+                      device_def.device_channel_def[3].device_channel_mode = work_mode_params & (0x01 << 3);
+                      device_def.device_channel_def[2].device_channel_mode = work_mode_params & (0x01 << 2);
+                      device_def.device_channel_def[1].device_channel_mode = work_mode_params & (0x01 << 1);
+                      device_def.device_channel_def[0].device_channel_mode = work_mode_params & (0x01 << 0);
+              }
+              #endif
+  57          void setParams13(uint8_t index)
+  58          {
+  59   1              if(index == 4)
+  60   1              {
+  61   2                      dev_params[12] &= 0xef;
+  62   2                      dev_params[12] &= device_def.device_work_mode << 4;
+  63   2              }
+  64   1              else
+  65   1              {
+  66   2                      dev_params[12] &= (~(0x01 << index));
+  67   2                      dev_params[12] &= (device_def.device_channel_def[index].device_channel_mode << index);
+  68   2              }
+  69   1      }
+  70          void getParams13(void)
+  71          {
+  72   1              device_def.device_work_mode = dev_params[12] & (0x01 << 4);
+  73   1              device_def.device_channel_def[3].device_channel_mode = dev_params[12] & (0x01 << 3);
+  74   1              device_def.device_channel_def[2].device_channel_mode = dev_params[12] & (0x01 << 2);
+  75   1              device_def.device_channel_def[1].device_channel_mode = dev_params[12] & (0x01 << 1);
+  76   1              device_def.device_channel_def[0].device_channel_mode = dev_params[12] & (0x01 << 0);
+  77   1      }
+  78          #endif
+  79          bool decodeWireless(uint8_t *decode_data)
+  80          {
+  81   1              static bool syn_flag = false;
+  82   1              static uint8_t bit_cnt = 0;
+  83   1              static uint8_t low_cnt = 0;
+  84   1              static uint8_t high_cnt = 0;
+  85   1              static uint8_t temp_val = 0;
+  86   1          uint8_t index = 0;
+  87   1              if(!syn_flag)
+  88   1              {
+  89   2                      if(WIRELESS_PIN == 0)
+  90   2                      {
+  91   3                              low_cnt++;
+  92   3                      }
+  93   2                      if(WIRELESS_PIN == 1)
+  94   2                      {
+  95   3                              if(low_cnt > 60 && low_cnt < 150)
+  96   3                              {
+  97   4                                      syn_flag = true;
+  98   4                              }
+  99   3                              low_cnt = 0;
+ 100   3                      }
+ 101   2              }
+ 102   1              if(syn_flag)
+ 103   1              {
+ 104   2                      if(WIRELESS_PIN == 1)
+ 105   2                      {
+ 106   3                              high_cnt++;
+ 107   3                      }
+ 108   2                      else
+ 109   2                      {
+ 110   3                              if((high_cnt) > 1 && high_cnt < 6)
+ 111   3                              {
+ 112   4                                      bit_cnt++;
+ 113   4                                      temp_val = (temp_val << 1) | 0x01;
+C51 COMPILER V9.53.0.0   WIRELESS                                                          04/06/2017 13:15:34 PAGE 3   
+
+ 114   4                              }
+ 115   3                              else if((high_cnt) > 6 && (high_cnt < 13))
+ 116   3                              {
+ 117   4                                      bit_cnt++;
+ 118   4                                      temp_val = temp_val << 1;
+ 119   4                              }
+ 120   3                              else if(high_cnt > 0)
+ 121   3                              {
+ 122   4                                      syn_flag = false;
+ 123   4                                      bit_cnt = 0;
+ 124   4                                      temp_val = 0;
+ 125   4                              }
+ 126   3                              high_cnt = 0;
+ 127   3                              if(bit_cnt != 0 && bit_cnt % 8 == 0 )
+ 128   3                              {
+ 129   4                                      index = (bit_cnt / 8) - 1;
+ 130   4                                      decode_data[index] = temp_val;
+ 131   4                                      if(bit_cnt == 24)
+ 132   4                                      {
+ 133   5                                              syn_flag = false;
+ 134   5                                              bit_cnt = 0;
+ 135   5                                              return true;
+ 136   5                                      }
+ 137   4                              }
+ 138   3                      }
+ 139   2              }
+ 140   1              return false;
+ 141   1      }
+ 142          
+ 143          void decode(void)
+ 144          {
+ 145   1              if(decodeWireless(decode_data))
+ 146   1              {
+ 147   2                      //wirelessLedTog();
+ 148   2                      wireless_flag  = true;
+ 149   2              }
+ 150   1      }
+ 151          static void wirelessStudy(uint8_t index)
+ 152          {
+ 153   1          uint8_t i = 0;
+ 154   1          uint32_t temp_val = 0;
+ 155   1          if(device_def.device_channel_def[index].wireless_study_flag == false)
+ 156   1          {
+ 157   2              device_def.device_channel_def[index].wireless_lastval =
+ 158   2                                              ((((decode_data[0] << 8) | decode_data[1]) << 8) | decode_data[2]);
+ 159   2              device_def.device_channel_def[index].wireless_study_flag = true;
+ 160   2          }
+ 161   1          else
+ 162   1          {
+ 163   2              if(device_def.device_channel_def[index].wireless_study_flag == true)
+ 164   2              {
+ 165   3                  if(device_def.device_channel_def[index].wireless_lastval ==
+ 166   3                              ((((decode_data[0] << 8) | decode_data[1]) << 8) | decode_data[2]))
+ 167   3                  {
+ 168   4                      for(i = 0; i < 12; i = i + 3)
+ 169   4                                      {
+ 170   5                                              temp_val = ((((dev_params[i] << 8) | dev_params[i+1]) << 8) | dev_params[i+2]);
+ 171   5                                              if(device_def.device_channel_def[index].wireless_lastval == temp_val)
+ 172   5                                              {
+ 173   6                                                      dev_params[i] = 0;
+ 174   6                                                      dev_params[i + 1] = 0;
+ 175   6                                                      dev_params[i + 2] = 0;
+ 176   6                                                      break;
+C51 COMPILER V9.53.0.0   WIRELESS                                                          04/06/2017 13:15:34 PAGE 4   
+
+ 177   6                                              }
+ 178   5                                      }
+ 179   4                      dev_params[index * 3] = decode_data[0];
+ 180   4                      dev_params[index * 3 + 1] = decode_data[1];
+ 181   4                      dev_params[index * 3 + 2] = decode_data[2];
+ 182   4                      /*存flash*/
+ 183   4                      //FLASH_ByteWrite();
+ 184   4                      //savaParamtoFlash();
+ 185   4                                      FLASH_PageErase(FLASH_LAST);
+ 186   4                                      for(i = 0; i < 13; i++)
+ 187   4                                      {
+ 188   5                                              FLASH_ByteWrite(FLASH_LAST+i,dev_params[i]);
+ 189   5                                      }
+ 190   4                      device_def.device_channel_def[index].device_status = DEVICE_STATUS_IDLE;
+ 191   4                      wirelessOn500msOff500ms(~(0x01 << index));
+ 192   4                  }
+ 193   3                  device_def.device_channel_def[index].wireless_study_flag = false;
+ 194   3                  device_def.device_channel_def[index].wireless_lastval = 0;
+ 195   3              }
+ 196   2          }
+ 197   1      }
+ 198          static void wirelessAction(void)
+ 199          {
+ 200   1          uint8_t i = 0;
+ 201   1          uint32_t temp_val = 0;
+ 202   1          if(wireless_flag == true)
+ 203   1          {
+ 204   2              for(i = 0; i < 12; i = i + 3)
+ 205   2                      {
+ 206   3                              if(dev_params[i] == decode_data[0]
+ 207   3                                 && dev_params[i + 1] == decode_data[1]
+ 208   3                                 && dev_params[i + 2] == decode_data[2])
+ 209   3                              {
+ 210   4                                      device_def.device_channel_def[i/3].wireless_flag = true;
+ 211   4                                      //按键处理
+ 212   4                                      if(device_def.device_work_mode != DEVICE_433)
+ 213   4                                      {
+ 214   5                                              setKeyPin(i / 3,false);
+ 215   5                                      }
+ 216   4                                      //闪灯
+ 217   4                                      wirelessOn50msOff50ms(LED_WIRELESS);
+ 218   4                                      break;
+ 219   4                              }
+ 220   3                      }
+ 221   2          }
+ 222   1          else
+ 223   1              {
+ 224   2              for(i = 0; i < 4; i++)
+ 225   2              {
+ 226   3                              if(device_def.device_channel_def[i].wireless_flag == true)
+ 227   3                              {
+ 228   4                                      device_def.device_channel_def[i].wireless_flag = false;
+ 229   4                                      //按键处理
+ 230   4                                      if(device_def.device_work_mode != DEVICE_433)
+ 231   4                                      {
+ 232   5                                              setKeyPin(i,true);
+ 233   5                                      }
+ 234   4                              }
+ 235   3              }
+ 236   2              }
+ 237   1      }
+ 238          void wireless_scan(void)
+ 239          {
+C51 COMPILER V9.53.0.0   WIRELESS                                                          04/06/2017 13:15:34 PAGE 5   
+
+ 240   1              uint8_t i = 0;
+ 241   1              for(i = 0; i < 4; i++)
+ 242   1              {
+ 243   2                      if((DEVICE_STATUS_STUDY == device_def.device_channel_def[i].device_status)
+ 244   2                              && DEVICE_433 == device_def.device_work_mode
+ 245   2                              && (wireless_flag == true))
+ 246   2                      {
+ 247   3                              wirelessStudy(i);
+ 248   3                              wireless_flag = false;
+ 249   3                              return;
+ 250   3                      }
+ 251   2              }
+ 252   1              wirelessAction();
+ 253   1              wireless_flag = false;
+ 254   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    917    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =     16    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      4      14
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      2    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

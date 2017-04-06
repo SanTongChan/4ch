@@ -1,0 +1,430 @@
+C51 COMPILER V9.53.0.0   KEY                                                               04/06/2017 12:38:21 PAGE 1   
+
+
+C51 COMPILER V9.53.0.0, COMPILATION OF MODULE KEY
+OBJECT MODULE PLACED IN .\src\key.OBJ
+COMPILER INVOKED BY: c:\SiliconLabs\SimplicityStudio\v3\developer\toolchains\keil_8051\9.53\BIN\C51.exe C:\Users\Adminis
+                    -trator\SimplicityStudio\v3_workspace\aidik_4ch\src\key.c OMF2 SMALL DEBUG OBJECTEXTEND ROM(LARGE) WARNINGLEVEL(2) FLOATF
+                    -UZZY(3) OPTIMIZE(8,SPEED) DEFINE(DEBUG=1) INTVECTOR(0X0000) INTPROMOTE INCDIR(C:\Users\Administrator\SimplicityStudio\v3
+                    -_workspace\aidik_4ch\inc;C:/SiliconLabs/SimplicityStudio/v3/developer/sdks/si8051/v3//Device/shared/si8051Base;C:/Silico
+                    -nLabs/SimplicityStudio/v3/developer/sdks/si8051/v3//Device/EFM8BB1;C:/SiliconLabs/SimplicityStudio/v3/developer/sdks/si8
+                    -051/v3//Device/EFM8BB1/inc) PRINT(.\src\key.lst) COND PAGEWIDTH(120) PAGELENGTH(65) OBJECT(.\src\key.OBJ)
+
+line level    source
+
+   1          /*
+   2           * key.c
+   3           *
+   4           *  Created on: 2017-4-4
+   5           *      Author: Administrator
+   6           *      3296  825  1029    1238   1441   1648
+   7           */
+   8          #include "key.h"
+   9          #include "driver/key_driver.h"
+  10          #include "logic.h"
+  11          #include "led.h"
+  12          
+  13          
+  14          static bool key5_is_press(void)
+  15          {
+  16   1          if(ad_val >= 750 && ad_val <= 900)
+  17   1          {
+  18   2              return true;
+  19   2          }
+  20   1          return false;
+  21   1      }
+  22          static bool key4_is_press(void)
+  23          {
+  24   1              if(ad_val >= 950 && ad_val <= 1100)
+  25   1              {
+  26   2                      return true;
+  27   2              }
+  28   1              return false;
+  29   1      }
+  30          static bool key3_is_press(void)
+  31          {
+  32   1              if(ad_val >= 1150 && ad_val <= 1300)
+  33   1              {
+  34   2                      return true;
+  35   2              }
+  36   1              return false;
+  37   1      }
+  38          static bool key2_is_press(void)
+  39          {
+  40   1              if(ad_val >= 1350 && ad_val <= 1500)
+  41   1              {
+  42   2                      return true;
+  43   2              }
+  44   1              return false;
+  45   1      }
+  46          static bool key1_is_press(void)
+  47          {
+  48   1              if(ad_val >= 1550 && ad_val <= 1700)
+  49   1              {
+  50   2                      return true;
+  51   2              }
+C51 COMPILER V9.53.0.0   KEY                                                               04/06/2017 12:38:21 PAGE 2   
+
+  52   1              return false;
+  53   1      }
+  54          /*单击不抬键已经校验过*/
+  55          static void key1_short_press(void)
+  56          {
+  57   1          if(DEVICE_433 == device_def.device_work_mode)
+  58   1          {
+  59   2              ledChannel1On();
+  60   2              return;
+  61   2          }
+  62   1          KEY1 = 0;
+  63   1      }
+  64          static void key2_short_press(void)
+  65          {
+  66   1              if(DEVICE_433 == device_def.device_work_mode)
+  67   1              {
+  68   2                      ledChannel2On();
+  69   2                      return;
+  70   2              }
+  71   1          KEY2 = 0;
+  72   1      }
+  73          static void key3_short_press(void)
+  74          {
+  75   1              if(DEVICE_433 == device_def.device_work_mode)
+  76   1              {
+  77   2                      ledChannel3On();
+  78   2                      return;
+  79   2              }
+  80   1          KEY3 = 0;
+  81   1      }
+  82          static void key4_short_press(void)
+  83          {
+  84   1              if(DEVICE_433 == device_def.device_work_mode)
+  85   1              {
+  86   2                      ledChannel4On();
+  87   2                      return;
+  88   2              }
+  89   1          KEY4 = 0;
+  90   1      }
+  91          /*双击搞定*/
+  92          static void key1_twice_press(void)
+  93          {
+  94   1              if(DEVICE_NORMAL == device_def.device_work_mode && DEVICE_NOLOCK == device_def.device_normal_state)
+  95   1              {
+  96   2                      if(device_def.device_channel_def[0].device_channel_mode == DEVICE_CHANNEL_SELFLOCK)
+  97   2                      {
+  98   3                              device_def.device_channel_def[0].device_channel_mode = DEVICE_CHANNEL_JOGGING;
+  99   3                              ledChannel1On();
+ 100   3                      }
+ 101   2                      else if(device_def.device_channel_def[0].device_channel_mode == DEVICE_CHANNEL_JOGGING)
+ 102   2                      {
+ 103   3                              device_def.device_channel_def[0].device_channel_mode = DEVICE_CHANNEL_SELFLOCK;
+ 104   3                              ledChannel1Off();
+ 105   3                      }
+ 106   2              }
+ 107   1      }
+ 108          static void key2_twice_press(void)
+ 109          {
+ 110   1              if(DEVICE_NORMAL == device_def.device_work_mode && DEVICE_NOLOCK == device_def.device_normal_state)
+ 111   1              {
+ 112   2                      if(device_def.device_channel_def[1].device_channel_mode == DEVICE_CHANNEL_SELFLOCK)
+ 113   2                      {
+ 114   3                              device_def.device_channel_def[1].device_channel_mode = DEVICE_CHANNEL_JOGGING;
+C51 COMPILER V9.53.0.0   KEY                                                               04/06/2017 12:38:21 PAGE 3   
+
+ 115   3                              ledChannel2On();
+ 116   3                      }
+ 117   2                      else if(device_def.device_channel_def[1].device_channel_mode == DEVICE_CHANNEL_JOGGING)
+ 118   2                      {
+ 119   3                              device_def.device_channel_def[1].device_channel_mode = DEVICE_CHANNEL_SELFLOCK;
+ 120   3                              ledChannel2Off();
+ 121   3                      }
+ 122   2              }
+ 123   1      }
+ 124          static void key3_twice_press(void)
+ 125          {
+ 126   1              if(DEVICE_NORMAL == device_def.device_work_mode && DEVICE_NOLOCK == device_def.device_normal_state)
+ 127   1              {
+ 128   2                      if(device_def.device_channel_def[2].device_channel_mode == DEVICE_CHANNEL_SELFLOCK)
+ 129   2                      {
+ 130   3                              device_def.device_channel_def[2].device_channel_mode = DEVICE_CHANNEL_JOGGING;
+ 131   3                              ledChannel3On();
+ 132   3                      }
+ 133   2                      else if(device_def.device_channel_def[2].device_channel_mode == DEVICE_CHANNEL_JOGGING)
+ 134   2                      {
+ 135   3                              device_def.device_channel_def[2].device_channel_mode = DEVICE_CHANNEL_SELFLOCK;
+ 136   3                              ledChannel3Off();
+ 137   3                      }
+ 138   2              }
+ 139   1      }
+ 140          static void key4_twice_press(void)
+ 141          {
+ 142   1              if(DEVICE_NORMAL == device_def.device_work_mode && DEVICE_NOLOCK == device_def.device_normal_state)
+ 143   1              {
+ 144   2                      if(device_def.device_channel_def[3].device_channel_mode == DEVICE_CHANNEL_SELFLOCK)
+ 145   2                      {
+ 146   3                              device_def.device_channel_def[3].device_channel_mode = DEVICE_CHANNEL_JOGGING;
+ 147   3                              ledChannel4On();
+ 148   3                      }
+ 149   2                      else if(device_def.device_channel_def[3].device_channel_mode == DEVICE_CHANNEL_JOGGING)
+ 150   2                      {
+ 151   3                              device_def.device_channel_def[3].device_channel_mode = DEVICE_CHANNEL_SELFLOCK;
+ 152   3                              ledChannel4Off();
+ 153   3                      }
+ 154   2              }
+ 155   1      }
+ 156          static void key5_twice_press(void)
+ 157          {
+ 158   1              if(device_def.device_work_mode == DEVICE_NORMAL)
+ 159   1              {
+ 160   2                      if(device_def.device_normal_state == DEVICE_NOLOCK)
+ 161   2                      {
+ 162   3                              device_def.device_normal_state = DEVICE_LOCK;
+ 163   3                              ledModeOn();
+ 164   3                      }
+ 165   2                      else if(device_def.device_normal_state == DEVICE_LOCK)
+ 166   2                      {
+ 167   3                              device_def.device_normal_state = DEVICE_NOLOCK;
+ 168   3                              device_def.device_channel_def[0].device_channel_mode = DEVICE_CHANNEL_SELFLOCK;
+ 169   3                              device_def.device_channel_def[1].device_channel_mode = DEVICE_CHANNEL_SELFLOCK;
+ 170   3                              device_def.device_channel_def[2].device_channel_mode = DEVICE_CHANNEL_SELFLOCK;
+ 171   3                              device_def.device_channel_def[3].device_channel_mode = DEVICE_CHANNEL_SELFLOCK;
+ 172   3                              ledModeOff();
+ 173   3                      }
+ 174   2                      ledSetChannelsValue(0xff);
+ 175   2              }
+ 176   1      }
+ 177          static void key1_short_up_press(void)
+C51 COMPILER V9.53.0.0   KEY                                                               04/06/2017 12:38:21 PAGE 4   
+
+ 178          {
+ 179   1          KEY1 = 1;
+ 180   1          if(device_def.device_work_mode == DEVICE_SETTING)
+ 181   1          {
+ 182   2              device_def.device_work_mode = DEVICE_NORMAL;
+ 183   2          }
+ 184   1          else if(device_def.device_work_mode == DEVICE_433)
+ 185   1              {
+ 186   2                      device_def.device_channel_def[0].device_status = DEVICE_STATUS_STUDY;
+ 187   2                      device_def.device_channel_def[1].device_status = DEVICE_STATUS_IDLE;
+ 188   2                      device_def.device_channel_def[2].device_status = DEVICE_STATUS_IDLE;
+ 189   2                      device_def.device_channel_def[3].device_status = DEVICE_STATUS_IDLE;
+ 190   2                      ledChannel1Off();
+ 191   2              }
+ 192   1      }
+ 193          static void key2_short_up_press(void)
+ 194          {
+ 195   1              KEY2 = 1;
+ 196   1              if(device_def.device_work_mode == DEVICE_SETTING)
+ 197   1              {
+ 198   2                      device_def.device_work_mode = DEVICE_NORMAL;
+ 199   2              }
+ 200   1              else if(device_def.device_work_mode == DEVICE_433)
+ 201   1              {
+ 202   2                      device_def.device_channel_def[0].device_status = DEVICE_STATUS_IDLE;
+ 203   2                      device_def.device_channel_def[1].device_status = DEVICE_STATUS_STUDY;
+ 204   2                      device_def.device_channel_def[2].device_status = DEVICE_STATUS_IDLE;
+ 205   2                      device_def.device_channel_def[3].device_status = DEVICE_STATUS_IDLE;
+ 206   2                      ledChannel2Off();
+ 207   2              }
+ 208   1      }
+ 209          static void key3_short_up_press(void)
+ 210          {
+ 211   1          KEY3 = 1;
+ 212   1          if(device_def.device_work_mode == DEVICE_SETTING)
+ 213   1              {
+ 214   2                      device_def.device_work_mode = DEVICE_NORMAL;
+ 215   2              }
+ 216   1              else if(device_def.device_work_mode == DEVICE_433)
+ 217   1              {
+ 218   2                      device_def.device_channel_def[0].device_status = DEVICE_STATUS_IDLE;
+ 219   2                      device_def.device_channel_def[1].device_status = DEVICE_STATUS_IDLE;
+ 220   2                      device_def.device_channel_def[2].device_status = DEVICE_STATUS_STUDY;
+ 221   2                      device_def.device_channel_def[3].device_status = DEVICE_STATUS_IDLE;
+ 222   2                      ledChannel3Off();
+ 223   2              }
+ 224   1      }
+ 225          static void key4_short_up_press(void)
+ 226          {
+ 227   1          KEY4 = 1;
+ 228   1          if(device_def.device_work_mode == DEVICE_SETTING)
+ 229   1              {
+ 230   2                      device_def.device_work_mode = DEVICE_NORMAL;
+ 231   2              }
+ 232   1              else if(device_def.device_work_mode == DEVICE_433)
+ 233   1              {
+ 234   2                      device_def.device_channel_def[0].device_status = DEVICE_STATUS_IDLE;
+ 235   2                      device_def.device_channel_def[1].device_status = DEVICE_STATUS_IDLE;
+ 236   2                      device_def.device_channel_def[2].device_status = DEVICE_STATUS_IDLE;
+ 237   2                      device_def.device_channel_def[3].device_status = DEVICE_STATUS_STUDY;
+ 238   2                      ledChannel4Off();
+ 239   2              }
+ 240   1      }
+C51 COMPILER V9.53.0.0   KEY                                                               04/06/2017 12:38:21 PAGE 5   
+
+ 241          static void key5_short_up_press(void)
+ 242          {
+ 243   1              uint8_t temp = 0;
+ 244   1              if(device_def.device_work_mode == DEVICE_433)
+ 245   1              {
+ 246   2                      device_def.device_work_mode =  DEVICE_NORMAL;
+ 247   2                      wirelessLedOff();
+ 248   2                      if(device_def.device_normal_state == DEVICE_LOCK)
+ 249   2                      {
+ 250   3                              ledModeOn();
+ 251   3                      }
+ 252   2                      else
+ 253   2                      {
+ 254   3                              ledModeOff();
+ 255   3                              temp = device_def.device_channel_def[3].device_channel_mode << 3
+ 256   3                                              | device_def.device_channel_def[2].device_channel_mode << 2
+ 257   3                                              | device_def.device_channel_def[1].device_channel_mode << 1
+ 258   3                                              | device_def.device_channel_def[0].device_channel_mode << 0;
+ 259   3                              ledSetChannelsValue(~temp);
+ 260   3                      }
+ 261   2              }
+ 262   1      }
+ 263          static void key1_long_press(void)
+ 264          {
+ 265   1          if(device_def.device_work_mode == DEVICE_NORMAL)
+ 266   1          {
+ 267   2              device_def.device_work_mode = DEVICE_SETTING;
+ 268   2          }
+ 269   1          else if(device_def.device_work_mode == DEVICE_433)
+ 270   1          {
+ 271   2              //清空flash
+ 272   2              device_def.device_channel_def[0].device_status = DEVICE_STATUS_IDLE;
+ 273   2              ledChannel1Off();
+ 274   2          }
+ 275   1       }
+ 276          static void key2_long_press(void)
+ 277          {
+ 278   1              if(device_def.device_work_mode != DEVICE_SETTING
+ 279   1                              && device_def.device_work_mode != DEVICE_433)
+ 280   1              {
+ 281   2                      device_def.device_work_mode = DEVICE_SETTING;
+ 282   2              }
+ 283   1              else if(device_def.device_work_mode == DEVICE_433)
+ 284   1              {
+ 285   2                      //清空键值
+ 286   2                      device_def.device_channel_def[1].device_status = DEVICE_STATUS_IDLE;
+ 287   2                      ledChannel2Off();
+ 288   2              }
+ 289   1      }
+ 290          static void key3_long_press(void)
+ 291          {
+ 292   1              if(device_def.device_work_mode != DEVICE_SETTING
+ 293   1                              && device_def.device_work_mode != DEVICE_433)
+ 294   1              {
+ 295   2                      device_def.device_work_mode = DEVICE_SETTING;
+ 296   2              }
+ 297   1              else if(device_def.device_work_mode == DEVICE_433)
+ 298   1              {
+ 299   2                      //清空键值
+ 300   2                      device_def.device_channel_def[2].device_status = DEVICE_STATUS_IDLE;
+ 301   2                      ledChannel3Off();
+ 302   2              }
+ 303   1      }
+C51 COMPILER V9.53.0.0   KEY                                                               04/06/2017 12:38:21 PAGE 6   
+
+ 304          static void key4_long_press(void)
+ 305          {
+ 306   1              if(device_def.device_work_mode != DEVICE_SETTING
+ 307   1                              && device_def.device_work_mode != DEVICE_433)
+ 308   1              {
+ 309   2                      device_def.device_work_mode = DEVICE_SETTING;
+ 310   2              }
+ 311   1              else if(device_def.device_work_mode == DEVICE_433)
+ 312   1              {
+ 313   2                      //清空键值
+ 314   2                      device_def.device_channel_def[3].device_status = DEVICE_STATUS_IDLE;
+ 315   2                      ledChannel4Off();
+ 316   2              }
+ 317   1      }
+ 318          static void key5_long_press(void)
+ 319          {
+ 320   1              uint8_t temp = 0;
+ 321   1          if(device_def.device_work_mode == DEVICE_NORMAL)
+ 322   1          {
+ 323   2              device_def.device_work_mode = DEVICE_433;
+ 324   2              device_def.device_channel_def[0].device_status = DEVICE_STATUS_IDLE;
+ 325   2              device_def.device_channel_def[1].device_status = DEVICE_STATUS_IDLE;
+ 326   2              device_def.device_channel_def[2].device_status = DEVICE_STATUS_IDLE;
+ 327   2              device_def.device_channel_def[3].device_status = DEVICE_STATUS_IDLE;
+ 328   2              ledSetChannelsValue(0xff);
+ 329   2              ledModeOff();
+ 330   2              ledChannel1Off();
+ 331   2              wirelessLedOn();
+ 332   2          }
+ 333   1          else if(device_def.device_work_mode == DEVICE_433)
+ 334   1              {
+ 335   2                      device_def.device_work_mode =  DEVICE_NORMAL;
+ 336   2                      wirelessLedOff();
+ 337   2                      if(device_def.device_normal_state == DEVICE_LOCK)
+ 338   2                      {
+ 339   3                              ledModeOn();
+ 340   3                      }
+ 341   2                      else
+ 342   2                      {
+ 343   3                              ledModeOff();
+ 344   3                              temp = device_def.device_channel_def[3].device_channel_mode << 3
+ 345   3                                              | device_def.device_channel_def[2].device_channel_mode << 2
+ 346   3                                              | device_def.device_channel_def[1].device_channel_mode << 1
+ 347   3                                              | device_def.device_channel_def[0].device_channel_mode << 0;
+ 348   3                              ledSetChannelsValue(~temp);
+ 349   3                      }
+ 350   2              }
+ 351   1      }
+ 352          
+ 353          static void key1_long_up_press(void)
+ 354          {
+ 355   1          KEY1 = 1;
+ 356   1      }
+ 357          static void key2_long_up_press(void)
+ 358          {
+ 359   1              KEY2 = 1;
+ 360   1      }
+ 361          static void key3_long_up_press(void)
+ 362          {
+ 363   1              KEY3 = 1;
+ 364   1      }
+ 365          static void key4_long_up_press(void)
+ 366          {
+C51 COMPILER V9.53.0.0   KEY                                                               04/06/2017 12:38:21 PAGE 7   
+
+ 367   1              KEY4 = 1;
+ 368   1      }
+ 369          static void registerKeys(void)
+ 370          {
+ 371   1          keyRegisterSingle(key1_is_press,key1_short_press,key1_short_up_press,
+ 372   1                              key1_long_press,key1_long_up_press,key1_twice_press);
+ 373   1          keyRegisterSingle(key2_is_press,key2_short_press,key2_short_up_press,
+ 374   1                              key2_long_press,key2_long_up_press,key2_twice_press);
+ 375   1          keyRegisterSingle(key3_is_press,key3_short_press,key3_short_up_press,
+ 376   1                              key3_long_press,key3_long_up_press,key3_twice_press);
+ 377   1          keyRegisterSingle(key4_is_press,key4_short_press,key4_short_up_press,
+ 378   1                              key4_long_press,key4_long_up_press,key4_twice_press);
+ 379   1          keyRegisterSingle(key5_is_press,NULL,key5_short_up_press,
+ 380   1                              key5_long_press,NULL,key5_twice_press);
+ 381   1      }
+ 382          void keyInit(void)
+ 383          {
+ 384   1              registerKeys();
+ 385   1      }
+ 386          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1062    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----       2
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

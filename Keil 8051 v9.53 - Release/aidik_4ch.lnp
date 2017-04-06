@@ -1,0 +1,11 @@
+"./src/EFM8BB1_ADC_ExternalInput.OBJ",
+"./src/EFM8BB1_FlashPrimitives.OBJ",
+"./src/InitDevice.OBJ",
+"./src/Interrupts.OBJ",
+"./src/SILABS_STARTUP.OBJ",
+"./src/key.OBJ",
+"./src/led.OBJ",
+"./src/logic.OBJ",
+"./src/wireless.OBJ",
+"./src/driver/key_driver.OBJ"
+TO "AIDIK_4CH.OMF.CRBUILD" REMOVEUNUSED PRINT(.\aidik_4ch.m51) PAGEWIDTH (120) PAGELENGTH (65) CLASSES( CODE(C:0x0 - C:0x1ffe), CONST(C:0x0 - C:0x1ffe), ECODE(C:0x0 - C:0x1ffe), HCONST(C:0x0 - C:0x1ffe), XDATA(X:0x0 - X:0xff), HDATA(X:0x0 - X:0xff))

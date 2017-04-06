@@ -1,0 +1,270 @@
+C51 COMPILER V9.53.0.0   KEY_DRIVER                                                        04/06/2017 12:53:06 PAGE 1   
+
+
+C51 COMPILER V9.53.0.0, COMPILATION OF MODULE KEY_DRIVER
+OBJECT MODULE PLACED IN .\src\driver\key_driver.OBJ
+COMPILER INVOKED BY: c:\SiliconLabs\SimplicityStudio\v3\developer\toolchains\keil_8051\9.53\BIN\C51.exe C:\Users\Adminis
+                    -trator\SimplicityStudio\v3_workspace\aidik_4ch\src\driver\key_driver.c OMF2 SMALL DEBUG OBJECTEXTEND ROM(LARGE) WARNINGL
+                    -EVEL(2) FLOATFUZZY(3) OPTIMIZE(9,SPEED) DEFINE(NDEBUG=1) INTVECTOR(0X0000) INTPROMOTE INCDIR(C:\Users\Administrator\Simp
+                    -licityStudio\v3_workspace\aidik_4ch\inc;C:/SiliconLabs/SimplicityStudio/v3/developer/sdks/si8051/v3//Device/shared/si805
+                    -1Base;C:/SiliconLabs/SimplicityStudio/v3/developer/sdks/si8051/v3//Device/EFM8BB1;C:/SiliconLabs/SimplicityStudio/v3/dev
+                    -eloper/sdks/si8051/v3//Device/EFM8BB1/inc) REGFILE(aidik_4ch.ORC) PRINT(.\src\driver\key_driver.lst) COND PAGEWIDTH(120)
+                    - PAGELENGTH(65) OBJECT(.\src\driver\key_driver.OBJ)
+
+line level    source
+
+   1          /*
+   2           * key_driver.c
+   3           *
+   4           *  Created on: 2017-4-4
+   5           *      Author: Administrator
+   6           */
+   7          #include "key_driver.h"
+   8          #include <SI_EFM8BB1_Register_Enums.h>
+   9          #define NO_KEY  (0)
+  10          #include "led.h"
+  11          
+  12          typedef struct
+  13          {
+  14                  KeyIsPressCb   _key_is_press_cb;
+  15              KeyPressProcCb _key_short_press_proc_cb;
+  16              KeyPressProcCb _key_short_up_press_proc_cb;
+  17              KeyPressProcCb _key_long_press_proc_cb;
+  18              KeyPressProcCb _key_long_up_press_proc_cb;
+  19              KeyPressProcCb _key_press_twice_proc_cb;
+  20              uint8_t _key_val;
+  21          } KeySingle;
+  22          
+  23          typedef struct
+  24          {
+  25              KeySingle _key_single[KEY_MAX_NUM];
+  26              uint8_t num;
+  27          }KeysDev;
+  28          
+  29          typedef struct
+  30          {
+  31              uint16_t _key_cnt;
+  32              uint16_t _key_up;
+  33              uint8_t _key_val;
+  34              uint8_t twice_press_cnt;
+  35              uint8_t twice_press_up_cnt;
+  36              uint8_t twice_press_flag;
+  37              uint8_t twice_press_up_flag;
+  38              uint8_t twice_flag;
+  39          }KEY_CTL;
+  40          
+  41          typedef struct
+  42          {
+  43              KEY_CTL key_ctl[KEY_MAX_NUM];
+  44          }KeysCtl;
+  45          
+  46          KeysDev  xdata keys_dev = {0};
+  47          KeysCtl  xdata keys_ctl = {0};
+  48          
+  49          static int8_t keyGet(void)
+  50          {
+C51 COMPILER V9.53.0.0   KEY_DRIVER                                                        04/06/2017 12:53:06 PAGE 2   
+
+  51   1          uint8_t key_val = NO_KEY;
+  52   1          uint8_t i = 0;
+  53   1          for(i = 0; i < KEY_MAX_NUM; i++)
+  54   1          {
+  55   2              if(keys_dev._key_single[i]._key_is_press_cb)
+  56   2              {
+  57   3                  if(true == keys_dev._key_single[i]._key_is_press_cb())
+  58   3                  {
+  59   4                      key_val |= keys_dev._key_single[i]._key_val;
+  60   4                  }
+  61   3              }
+  62   2          }
+  63   1          return key_val;
+  64   1      }
+  65          
+  66          bool keyRegisterSingle(KeyIsPressCb _key_is_press,
+  67                                      KeyPressProcCb _key_short_press_proc_cb,
+  68                                      KeyPressProcCb _key_short_up_press_proc_cb,
+  69                                      KeyPressProcCb _key_long_press_proc_cb,
+  70                                      KeyPressProcCb _key_long_up_press_proc_cb,
+  71                                      KeyPressProcCb _key_press_twice_proc_cb)
+  72          {
+  73   1          uint8_t i = 1;
+  74   1          if(keys_dev.num >= KEY_MAX_NUM)
+  75   1          {
+  76   2              return false;
+  77   2          }
+  78   1              keys_dev._key_single[keys_dev.num]._key_is_press_cb = _key_is_press;
+  79   1              keys_dev._key_single[keys_dev.num]._key_short_press_proc_cb = _key_short_press_proc_cb;
+  80   1              keys_dev._key_single[keys_dev.num]._key_short_up_press_proc_cb = _key_short_up_press_proc_cb;
+  81   1              keys_dev._key_single[keys_dev.num]._key_long_press_proc_cb = _key_long_press_proc_cb;
+  82   1              keys_dev._key_single[keys_dev.num]._key_long_up_press_proc_cb = _key_long_up_press_proc_cb;
+  83   1              keys_dev._key_single[keys_dev.num]._key_press_twice_proc_cb = _key_press_twice_proc_cb;
+  84   1              keys_dev._key_single[keys_dev.num]._key_val = i << keys_dev.num;
+  85   1              keys_dev.num++;
+  86   1              return true;
+  87   1      }
+  88          static void keyDeal(uint8_t key_val,uint8_t key_id)
+  89          {
+  90   1          keys_ctl.key_ctl[key_id].twice_press_cnt++;
+  91   1          keys_ctl.key_ctl[key_id].twice_press_up_cnt++;
+  92   1          if(key_val == NO_KEY || key_val != keys_ctl.key_ctl[key_id]._key_val)
+  93   1          {
+  94   2              if(keys_ctl.key_ctl[key_id]._key_up < KEY_UP_TIMES)
+  95   2              {
+  96   3                  keys_ctl.key_ctl[key_id]._key_up++;
+  97   3              }
+  98   2              else
+  99   2              {
+ 100   3                  if(keys_ctl.key_ctl[key_id]._key_cnt >= KEY_LONG_TIMES)
+ 101   3                  {
+ 102   4                      keys_ctl.key_ctl[key_id].twice_flag = false;
+ 103   4                      if(keys_dev._key_single[key_id]._key_long_up_press_proc_cb)
+ 104   4                      {
+ 105   5                          keys_dev._key_single[key_id]._key_long_up_press_proc_cb();
+ 106   5                      }
+ 107   4                  }
+ 108   3                  else
+ 109   3                  {
+ 110   4                      if(keys_ctl.key_ctl[key_id]._key_cnt >= KEY_SCAN_TIMES)
+ 111   4                      {
+ 112   5                          if(keys_dev._key_single[key_id]._key_press_twice_proc_cb)
+ 113   5                          {
+C51 COMPILER V9.53.0.0   KEY_DRIVER                                                        04/06/2017 12:53:06 PAGE 3   
+
+ 114   6                              if(keys_ctl.key_ctl[key_id].twice_flag == true)
+ 115   6                              {
+ 116   7                                  keys_ctl.key_ctl[key_id].twice_flag = false;
+ 117   7                              }
+ 118   6                              else
+ 119   6                              {
+ 120   7                                  if(keys_ctl.key_ctl[key_id].twice_press_up_flag == true)
+ 121   7                                  {
+ 122   8                                      /*处理短按抬键*/
+ 123   8                                      if(keys_dev._key_single[key_id]._key_short_up_press_proc_cb)
+ 124   8                                      {
+ 125   9                                          keys_dev._key_single[key_id]._key_short_up_press_proc_cb();
+ 126   9                                      }
+ 127   8                                  }
+ 128   7                                  keys_ctl.key_ctl[key_id].twice_press_up_cnt = 0;
+ 129   7                                  keys_ctl.key_ctl[key_id].twice_press_up_flag = true;
+ 130   7                              }
+ 131   6                          }
+ 132   5                          else
+ 133   5                          {
+ 134   6                              if(keys_dev._key_single[key_id]._key_short_up_press_proc_cb)
+ 135   6                              {
+ 136   7                                  keys_dev._key_single[key_id]._key_short_up_press_proc_cb();
+ 137   7                              }
+ 138   6                          }
+ 139   5                      }
+ 140   4                  }
+ 141   3                  keys_ctl.key_ctl[key_id]._key_val = key_val;
+ 142   3                  keys_ctl.key_ctl[key_id]._key_cnt = 0;
+ 143   3              }
+ 144   2          }
+ 145   1          else
+ 146   1          {
+ 147   2              keys_ctl.key_ctl[key_id]._key_cnt++;
+ 148   2              if(keys_ctl.key_ctl[key_id]._key_cnt == KEY_SCAN_TIMES)
+ 149   2              {
+ 150   3                  keys_ctl.key_ctl[key_id]._key_up = 0;
+ 151   3                  if(keys_dev._key_single[key_id]._key_press_twice_proc_cb)
+ 152   3                  {
+ 153   4                      if(keys_ctl.key_ctl[key_id].twice_press_up_flag == true
+ 154   4                          && keys_ctl.key_ctl[key_id].twice_press_cnt < KEY_TWICE_TIMES)
+ 155   4                      {
+ 156   5                          keys_ctl.key_ctl[key_id].twice_flag = true;
+ 157   5                          keys_ctl.key_ctl[key_id].twice_press_up_flag = false;
+ 158   5                          keys_ctl.key_ctl[key_id].twice_press_flag = false;
+ 159   5                          /*双击相关处理*/
+ 160   5                          if(keys_dev._key_single[key_id]._key_press_twice_proc_cb)
+ 161   5                          {
+ 162   6                              keys_dev._key_single[key_id]._key_press_twice_proc_cb();
+ 163   6                          }
+ 164   5                      }
+ 165   4                      else
+ 166   4                      {
+ 167   5                          keys_ctl.key_ctl[key_id].twice_flag = false;
+ 168   5                          keys_ctl.key_ctl[key_id].twice_press_flag = true;
+ 169   5                          keys_ctl.key_ctl[key_id].twice_press_cnt = 0;
+ 170   5                      }
+ 171   4                  }
+ 172   3                  else
+ 173   3                  {
+ 174   4                      if(keys_dev._key_single[key_id]._key_short_press_proc_cb)
+ 175   4                      {
+ 176   5                          keys_dev._key_single[key_id]._key_short_press_proc_cb();
+C51 COMPILER V9.53.0.0   KEY_DRIVER                                                        04/06/2017 12:53:06 PAGE 4   
+
+ 177   5                      }
+ 178   4                  }
+ 179   3              }
+ 180   2              else if (keys_ctl.key_ctl[key_id]._key_cnt == KEY_LONG_TIMES)
+ 181   2              {
+ 182   3                  keys_ctl.key_ctl[key_id].twice_flag = false;
+ 183   3                  if(keys_dev._key_single[key_id]._key_long_press_proc_cb)
+ 184   3                  {
+ 185   4                      keys_dev._key_single[key_id]._key_long_press_proc_cb();
+ 186   4                  }
+ 187   3              }
+ 188   2          }
+ 189   1          if(keys_dev._key_single[key_id]._key_press_twice_proc_cb)
+ 190   1          {
+ 191   2              if(keys_ctl.key_ctl[key_id].twice_press_flag == true
+ 192   2                  && keys_ctl.key_ctl[key_id].twice_press_cnt >= KEY_TWICE_TIMES
+ 193   2                  && keys_dev._key_single[key_id]._key_short_press_proc_cb)
+ 194   2              {
+ 195   3                  keys_ctl.key_ctl[key_id].twice_press_flag = false;
+ 196   3                  if(keys_dev._key_single[key_id]._key_short_press_proc_cb)
+ 197   3                  {
+ 198   4                      keys_dev._key_single[key_id]._key_short_press_proc_cb();
+ 199   4                  }
+ 200   3              }
+ 201   2              if(keys_ctl.key_ctl[key_id].twice_press_up_flag == true
+ 202   2                  && keys_ctl.key_ctl[key_id].twice_press_up_cnt >= KEY_TWICE_TIMES)
+ 203   2              {
+ 204   3                  keys_ctl.key_ctl[key_id].twice_press_up_flag = false;
+ 205   3                  if(keys_dev._key_single[key_id]._key_short_up_press_proc_cb)
+ 206   3                  {
+ 207   4                      keys_dev._key_single[key_id]._key_short_up_press_proc_cb();
+ 208   4                  }
+ 209   3              }
+ 210   2          }
+ 211   1      }
+ 212          
+ 213          static void keysDeal(uint8_t key_val)
+ 214          {
+ 215   1          uint8_t i = 0;
+ 216   1          uint8_t timer_cnt = 1;
+ 217   1          uint8_t key_temp = 0;
+ 218   1          for(i = 0; i < KEY_MAX_NUM; i++)
+ 219   1          {
+ 220   2              key_temp = key_val & (timer_cnt << i);
+ 221   2              keyDeal(key_temp,i);
+ 222   2          }
+ 223   1      }
+ 224          void keyScan(void)
+ 225          {
+ 226   1          uint8_t key_val = NO_KEY;
+ 227   1          key_val = keyGet();
+ 228   1          keysDeal(key_val);
+ 229   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1024    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =    146    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----      26
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+C51 COMPILER V9.53.0.0   KEY_DRIVER                                                        04/06/2017 12:53:06 PAGE 5   
+
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

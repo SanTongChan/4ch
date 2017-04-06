@@ -1,0 +1,250 @@
+C51 COMPILER V9.53.0.0   LOGIC                                                             04/06/2017 12:38:21 PAGE 1   
+
+
+C51 COMPILER V9.53.0.0, COMPILATION OF MODULE LOGIC
+OBJECT MODULE PLACED IN .\src\logic.OBJ
+COMPILER INVOKED BY: c:\SiliconLabs\SimplicityStudio\v3\developer\toolchains\keil_8051\9.53\BIN\C51.exe C:\Users\Adminis
+                    -trator\SimplicityStudio\v3_workspace\aidik_4ch\src\logic.c OMF2 SMALL DEBUG OBJECTEXTEND ROM(LARGE) WARNINGLEVEL(2) FLOA
+                    -TFUZZY(3) OPTIMIZE(8,SPEED) DEFINE(DEBUG=1) INTVECTOR(0X0000) INTPROMOTE INCDIR(C:\Users\Administrator\SimplicityStudio\
+                    -v3_workspace\aidik_4ch\inc;C:/SiliconLabs/SimplicityStudio/v3/developer/sdks/si8051/v3//Device/shared/si8051Base;C:/Sili
+                    -conLabs/SimplicityStudio/v3/developer/sdks/si8051/v3//Device/EFM8BB1;C:/SiliconLabs/SimplicityStudio/v3/developer/sdks/s
+                    -i8051/v3//Device/EFM8BB1/inc) PRINT(.\src\logic.lst) COND PAGEWIDTH(120) PAGELENGTH(65) OBJECT(.\src\logic.OBJ)
+
+line level    source
+
+   1          /*
+   2           * logic.c
+   3           *
+   4           *  Created on: 2017-4-4
+   5           *      Author: Administrator
+   6           */
+   7          
+   8          #include "logic.h"
+   9          #include "key.h"
+  10          #include "led.h"
+  11          #include "stdio.h"
+  12          DeviceDef device_def = {0};
+  13          uint8_t work_mode_params = 0;
+  14          uint16_t time_level = 50;
+  15          uint32_t ad_val = 0 ;
+  16          uint16_t code table[20] = {3100,2700,2300,1900,1500,1200,900,600,300,0,350,300,250,200,150,130,110,90,70,5
+             -0};
+  17          
+  18          sbit RELAY1 = P1^4;
+  19          sbit RELAY2 = P1^3;
+  20          sbit RELAY3 = P0^7;
+  21          sbit RELAY4 = P1^1;
+  22          
+  23          void saveWorkParams(void)
+  24          {
+  25   1              work_mode_params &= (device_def.device_work_mode << 4);
+  26   1              work_mode_params |= device_def.device_channel_def[3].device_channel_mode << 3;
+  27   1              work_mode_params |= device_def.device_channel_def[2].device_channel_mode << 2;
+  28   1              work_mode_params |= device_def.device_channel_def[1].device_channel_mode << 1;
+  29   1              work_mode_params |= device_def.device_channel_def[0].device_channel_mode << 0;
+  30   1      }
+  31          void loadWorkParams(void)
+  32          {
+  33   1              device_def.device_work_mode = work_mode_params & 0x10;
+  34   1              device_def.device_channel_def[3].device_channel_mode = work_mode_params & 0x08;
+  35   1              device_def.device_channel_def[2].device_channel_mode = work_mode_params & 0x04;
+  36   1              device_def.device_channel_def[1].device_channel_mode = work_mode_params & 0x02;
+  37   1              device_def.device_channel_def[0].device_channel_mode = work_mode_params & 0x01;
+  38   1      }
+  39          void deviceInit(void)
+  40          {
+  41   1              keyInit();
+  42   1              ledsOff();
+  43   1      }
+  44          
+  45          void adScan(void)
+  46          {
+  47   1              static uint32_t accumulator = 0;
+  48   1              static uint16_t measure_cnt = 2048;
+  49   1              static bool switch_ad_flag = false;
+  50   1              uint32_t result = 0;
+C51 COMPILER V9.53.0.0   LOGIC                                                             04/06/2017 12:38:21 PAGE 2   
+
+  51   1              uint8_t i = 0;
+  52   1              ADC0CN0_ADINT = 0;
+  53   1              accumulator += ADC0;
+  54   1              measure_cnt--;
+  55   1              if(measure_cnt == 0 && switch_ad_flag == false)
+  56   1              {
+  57   2                      measure_cnt = 50;
+  58   2                      result = accumulator / 2048;
+  59   2                      accumulator = 0;
+  60   2                      result =  (result * 3300) / 1023;
+  61   2                      switch_ad_flag = true;
+  62   2                      ADC0MX = ADC0MX_ADC0MX__ADC0P6;
+  63   2                      for(i = 0; i < 10; i++)
+  64   2                      {
+  65   3                              if(result >= table[i])
+  66   3                              {
+  67   4                                      time_level = table[i + 10];
+  68   4                                      break;
+  69   4                              }
+  70   3                      }
+  71   2              }
+  72   1              else if(measure_cnt == 0 && switch_ad_flag == true)
+  73   1              {
+  74   2                      measure_cnt = 50;
+  75   2                      result = accumulator / 50;
+  76   2                      accumulator = 0;
+  77   2                      ad_val =  (result * 3300) / 1023;
+  78   2              }
+  79   1      }
+  80          
+  81          void setKeyPin(uint8_t index,bool level)
+  82          {
+  83   1              if(0 == index)
+  84   1              {
+  85   2                      KEY1 = level;
+  86   2              }
+  87   1              else if(1 == index)
+  88   1              {
+  89   2                      KEY2 = level;
+  90   2              }
+  91   1              else if(2 == index)
+  92   1              {
+  93   2                      KEY3 = level;
+  94   2              }
+  95   1              else if(3 == index)
+  96   1              {
+  97   2                      KEY4 = level;
+  98   2              }
+  99   1      }
+ 100          static uint8_t getReadRelayStatus(uint8_t index)
+ 101          {
+ 102   1              if(index == 0)
+ 103   1              {
+ 104   2                      return RELAY1;
+ 105   2              }
+ 106   1              else if(index == 1)
+ 107   1              {
+ 108   2                      return RELAY2;
+ 109   2              }
+ 110   1              else if(index == 2)
+ 111   1              {
+ 112   2                      return RELAY3;
+ 113   2              }
+C51 COMPILER V9.53.0.0   LOGIC                                                             04/06/2017 12:38:21 PAGE 3   
+
+ 114   1              else
+ 115   1              {
+ 116   2                      return RELAY4;
+ 117   2              }
+ 118   1      }
+ 119          static void dealJogging(void)
+ 120          {
+ 121   1          uint8_t i = 0;
+ 122   1          for(i = 0; i < 4; i++)
+ 123   1          {
+ 124   2              device_def.device_channel_def[i].time_cnt++;
+ 125   2              if(device_def.device_channel_def[i].device_channel_mode == DEVICE_CHANNEL_JOGGING)
+ 126   2              {
+ 127   3                  if(getReadRelayStatus(i) == 1 && device_def.device_channel_def[i].jogging_flag == false)
+ 128   3                  {
+ 129   4                      device_def.device_channel_def[i].time_cnt = 0;
+ 130   4                      device_def.device_channel_def[i].jogging_flag = true;
+ 131   4                  }
+ 132   3                  else if(device_def.device_channel_def[i].jogging_flag == true
+ 133   3                      && device_def.device_channel_def[i].time_cnt == time_level - 5
+ 134   3                      && getReadRelayStatus(i) == 1)
+ 135   3                  {
+ 136   4                      setKeyPin(i,false);
+ 137   4                  }
+ 138   3                  else if(device_def.device_channel_def[i].jogging_flag == true
+ 139   3                      && device_def.device_channel_def[i].time_cnt == time_level
+ 140   3                      && getReadRelayStatus(i) == 1)
+ 141   3                  {
+ 142   4                      setKeyPin(i,true);
+ 143   4                      device_def.device_channel_def[i].jogging_flag = false;
+ 144   4                  }
+ 145   3                  else if(getReadRelayStatus(i) == 0 && device_def.device_channel_def[i].jogging_flag == true)
+ 146   3                  {
+ 147   4                      device_def.device_channel_def[i].jogging_flag = false;
+ 148   4                  }
+ 149   3              }
+ 150   2          }
+ 151   1      }
+ 152          static void setChannelStatusInLock(uint8_t index,uint8_t lock_channel)
+ 153          {
+ 154   1          if(getReadRelayStatus(index) == 1 && lock_channel != (index + 1) && device_def.device_channel_def[inde
+             -x].time_cnt <=5)
+ 155   1          {
+ 156   2              setKeyPin(index,false);
+ 157   2          }
+ 158   1          else if(getReadRelayStatus(index) == 1 && lock_channel != (index + 1) && device_def.device_channel_def
+             -[index].time_cnt > 5)
+ 159   1          {
+ 160   2              setKeyPin(index,true);
+ 161   2              device_def.device_channel_def[index].time_cnt = 0;
+ 162   2          }
+ 163   1      }
+ 164          static void dealLock(void)
+ 165          {
+ 166   1          static uint8_t lock_channel = 0;
+ 167   1          static uint8_t last_lock_channel = 0;
+ 168   1          static uint8_t xdata last_relay_val[4] = {0};
+ 169   1          uint8_t xdata relay_val[4] = {0};
+ 170   1          uint8_t i = 0;
+ 171   1          relay_val[0] = RELAY1;
+ 172   1          relay_val[1] = RELAY2;
+ 173   1          relay_val[2] = RELAY3;
+ 174   1          relay_val[3] = RELAY4;
+C51 COMPILER V9.53.0.0   LOGIC                                                             04/06/2017 12:38:21 PAGE 4   
+
+ 175   1          for(i = 0; i < 4; i++)
+ 176   1          {
+ 177   2              if(relay_val[i] != last_relay_val[i] && relay_val[i] == 1)
+ 178   2              {
+ 179   3                  lock_channel = i + 1;
+ 180   3      
+ 181   3              }
+ 182   2              last_relay_val[i] = relay_val[i];
+ 183   2              device_def.device_channel_def[i].time_cnt++;
+ 184   2          }
+ 185   1      
+ 186   1          if(last_lock_channel != lock_channel)
+ 187   1          {
+ 188   2              for(i = 0; i < 4; i++)
+ 189   2              {
+ 190   3                  device_def.device_channel_def[i].time_cnt = 0;
+ 191   3              }
+ 192   2              last_lock_channel = lock_channel;
+ 193   2          }
+ 194   1          for(i = 0; i < 4; i++)
+ 195   1          {
+ 196   2              setChannelStatusInLock(i,lock_channel);
+ 197   2          }
+ 198   1      }
+ 199          void dealNormalMode(void)
+ 200          {
+ 201   1              if(device_def.device_normal_state == DEVICE_LOCK)
+ 202   1              {
+ 203   2                      dealLock();
+ 204   2              }
+ 205   1              else
+ 206   1              {
+ 207   2                      dealJogging();
+ 208   2              }
+ 209   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    947    ----
+   CONSTANT SIZE    =     44    ----
+   XDATA SIZE       =      4       4
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     65       5
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      1       1
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
